@@ -1,7 +1,22 @@
 #-*- coding: utf-8 -*-
+import signal
 import time
 
+from contextlib import contextmanager
 from selenose.cases import LiveServerTestCase
+
+class TimeoutException(Exception): pass
+
+@contextmanager
+def time_limit(seconds):
+    def signal_handler(signum, frame):
+        raise TimeoutException, "Timed out!"
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
 
 class AdminTestCase(LiveServerTestCase):
 
@@ -9,11 +24,14 @@ class AdminTestCase(LiveServerTestCase):
         # Open the administration page
         self.driver.get(self.live_server_url + '/admin/')
         # Enter the name of the user
-        self.driver.find_element_by_id('id_username').send_keys('admin')
+        username = self.driver.find_element_by_id('id_username')
+        with time_limit(10):
+            username.send_keys('admin')
         # Get the password input
         password = self.driver.find_element_by_id('id_password')
         # Type password
-        password.send_keys('admin')
+        with time_limit(10):
+            password.send_keys('admin')
         # Submit the form
         password.submit()
         # Load page
